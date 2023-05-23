@@ -4,8 +4,11 @@ import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Sort;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -14,9 +17,10 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.mlv.springboot.student.data.jpa.dto.APIResponce;
+import com.mlv.springboot.student.data.jpa.entity.AuthRequest;
 import com.mlv.springboot.student.data.jpa.entity.Student;
 import com.mlv.springboot.student.data.jpa.entity.StudentMarks;
+import com.mlv.springboot.student.data.jpa.service.JWTService;
 import com.mlv.springboot.student.data.jpa.service.StudentServiceImplementation;
 
 import jakarta.annotation.PostConstruct;
@@ -31,70 +35,77 @@ public class StudentController {
 	@Autowired
 	private PasswordEncoder passwordEncoder;
 
-	/*
-	 * @PostConstruct public void intiDB() {
-	 * 
-	 * StudentMarks m1 = new StudentMarks(1, 100, 100, 100, 100, 100);
-	 * 
-	 * Student mano = new Student(1, "Mano", 25, m1, "ADMIN",
-	 * passwordEncoder.encode("Mano"));
-	 * 
-	 * StudentMarks m2 = new StudentMarks(1, 60, 50, 70, 80, 80);
-	 * 
-	 * Student elango = new Student(2, "Elangovan", 25, m2, "USER",
-	 * passwordEncoder.encode("Elangovan"));
-	 * 
-	 * studentServiceImplementation.addStudent(mano);
-	 * 
-	 * studentServiceImplementation.addStudent(elango);
-	 * 
-	 * }
-	 */
+	@Autowired
+	private JWTService jWTService;
 
-	@GetMapping("/get")
-	@PreAuthorize("hasAuthority('USER')")
-	public List<Student> get() {
+	@Autowired
+	private AuthenticationManager authenticationManager;
 
-		return studentServiceImplementation.getAll();
-	}
+	@PostConstruct
+	public void intiDB() {
 
-	@GetMapping("/getAll")
-	@PreAuthorize("hasAuthority('ADMIN')")
-	private APIResponce<List<APIResponce>> getAll() {
+		StudentMarks m1 = new StudentMarks(1, 100, 100, 100, 100, 100);
 
-		List<Student> allStudents = studentServiceImplementation.getAll();
+		Student mano = new Student(1, "mano", 25, m1, "ROLE_ADMIN", passwordEncoder.encode("mano"));
 
-		return new APIResponce(allStudents.size(), allStudents);
-	}
+		StudentMarks m3 = new StudentMarks(2, 60, 50, 70, 80, 80);
 
-	@GetMapping("/sort/getAll/{field}")
-	@PreAuthorize("hasAuthority('ADMIN')")
-	public APIResponce<List<APIResponce>> findStudentsWithSorting(@PathVariable("field") String field) {
+		Student elango = new Student(2, "elango", 25, m3, "ROLE_USER", passwordEncoder.encode("elango"));
 
-		List<Student> allStudents2 = studentServiceImplementation.findStudentsWithSorting(field);
+		studentServiceImplementation.addStudents(mano);
 
-		return new APIResponce(allStudents2.size(), allStudents2);
+		studentServiceImplementation.addStudents(elango);
 
 	}
 
-	@GetMapping("/pagination/getAll/{offset}/{pageSize}")
-	@PreAuthorize("hasAuthority('ADMIN')")
-	public APIResponce<Page<Student>> findStudentsWithPagination(@PathVariable("offset") int offset,
+	@GetMapping("/welcome")
+	// @PreAuthorize("hasAuthority('ROLE_USER')")
+	public String welcomeMessage() {
+
+		return "Hi Welcome to spring security";
+	}
+
+	@GetMapping("/all")
+	@PreAuthorize("hasAuthority('ROLE_USER')")
+	public List<Student> getAllStudents() {
+
+		return studentServiceImplementation.getAllStudent();
+	}
+
+	@GetMapping("/sort/{field}")
+	@PreAuthorize("hasAuthority('ROLE_ADMIN')")
+	public List<Student> findStudentsWithSorting(@PathVariable("field") String field) {
+
+		return studentServiceImplementation.findStudentsWithSorting(field);
+	}
+
+	@GetMapping("/pagination/{offset}/{pageSize}")
+	@PreAuthorize("hasAuthority('ROLE_ADMIN')")
+	public Page<Student> findStudentsWithPagination(@PathVariable("offset") int offset,
 			@PathVariable("pageSize") int pageSize) {
 
-		Page<Student> students = studentServiceImplementation.findStudentsWithPagination(offset, pageSize);
-
-		return new APIResponce(students.getSize(), students);
+		return studentServiceImplementation.findStudentsWithPagination(offset, pageSize);
 	}
 
-	@GetMapping("/pagination/sort/getAll/{offset}/{pageSize}/{field}")
-	@PreAuthorize("hasAuthority('ADMIN')")
-	public APIResponce<Page<Student>> findStudentsWithPaginationAndSorting(@PathVariable("offset") int offset,
+	@GetMapping("/pagination/{offset}/{pageSize}/{field}")
+	@PreAuthorize("hasAuthority('ROLE_ADMIN')")
+	public Page<Student> findStudentsWithPaginationAndSorting(@PathVariable("offset") int offset,
 			@PathVariable("pageSize") int pageSize, @PathVariable("field") String field) {
 
-		Page<Student> students = studentServiceImplementation.findStudentsWithPaginationAndSorting(offset, pageSize,
-				field);
-
-		return new APIResponce(students.getSize(), students);
+		return studentServiceImplementation.findStudentsWithPaginationAndSorting(offset, pageSize, field);
 	}
+
+	@PostMapping("/authentication")
+	public String authenticateAndGetToken(@RequestBody AuthRequest authRequest) {
+
+		Authentication authentication = authenticationManager.authenticate(
+				new UsernamePasswordAuthenticationToken(authRequest.getName(), authRequest.getPassword()));
+		if (authentication.isAuthenticated()) {
+			return jWTService.generateToken(authRequest.getName());
+		} else {
+			throw new UsernameNotFoundException("invalid user request !");
+		}
+
+	}
+
 }

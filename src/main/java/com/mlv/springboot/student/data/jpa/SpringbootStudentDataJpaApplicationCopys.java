@@ -4,10 +4,10 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 @SpringBootApplication
-public class SpringbootStudentDataJpaApplication {// implements CommandLineRunner {
+public class SpringbootStudentDataJpaApplicationCopys {// implements CommandLineRunner {
 
 	public static void main(String[] args) {
-		SpringApplication.run(SpringbootStudentDataJpaApplication.class, args);
+		SpringApplication.run(SpringbootStudentDataJpaApplicationCopys.class, args);
 
 	}
 

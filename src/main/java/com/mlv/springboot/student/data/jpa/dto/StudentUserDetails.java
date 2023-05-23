@@ -11,17 +11,17 @@ import org.springframework.security.core.userdetails.UserDetails;
 
 import com.mlv.springboot.student.data.jpa.entity.Student;
 
-public class StudentDTO implements UserDetails {
+public class StudentUserDetails implements UserDetails {
 
-	String name;
-	String password;
-	private List<GrantedAuthority> grantedAuthority;
+	private String name;
+	private String password;
+	private List<GrantedAuthority> role;
 
-	public StudentDTO(Student student) {
+	public StudentUserDetails(Student student) {
 
 		name = student.getName();
 		password = student.getPassword();
-		grantedAuthority = Arrays.stream(student.getRole().split(",")).map(SimpleGrantedAuthority::new)
+		role = Arrays.stream(student.getRole().split(",")).map(SimpleGrantedAuthority::new)
 				.collect(Collectors.toList());
 
 	}
@@ -29,7 +29,7 @@ public class StudentDTO implements UserDetails {
 	@Override
 	public Collection<? extends GrantedAuthority> getAuthorities() {
 
-		return grantedAuthority;
+		return role;
 	}
 
 	@Override
