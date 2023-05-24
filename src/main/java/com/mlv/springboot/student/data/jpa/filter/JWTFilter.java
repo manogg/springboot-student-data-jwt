@@ -24,17 +24,23 @@ public class JWTFilter extends OncePerRequestFilter {
 	@Autowired
 	private StudentServiceImplementation studentServiceImplementation;
 
+	
+	//Extract the token and get details from it.
+	
 	@Override
 	protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
 			throws ServletException, IOException, java.io.IOException {
 		String authHeader = request.getHeader("Authorization");
 		String token = null;
 		String username = null;
+
 		if (authHeader != null && authHeader.startsWith("Bearer ")) {
 			token = authHeader.substring(7);
 			username = jWTService.extractUsername(token);
 		}
 
+		//Register the Authentication Object into Security Context.
+		
 		if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
 			UserDetails userDetails = studentServiceImplementation.loadUserByUsername(username);
 			if (jWTService.validateToken(token, userDetails)) {

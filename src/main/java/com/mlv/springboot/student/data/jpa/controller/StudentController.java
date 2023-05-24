@@ -16,11 +16,14 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-
+import com.mlv.springboot.student.data.jpa.dto.JwtResponse;
+import com.mlv.springboot.student.data.jpa.dto.RefreshTokenRequest;
 import com.mlv.springboot.student.data.jpa.entity.AuthRequest;
+import com.mlv.springboot.student.data.jpa.entity.RefreshToken;
 import com.mlv.springboot.student.data.jpa.entity.Student;
 import com.mlv.springboot.student.data.jpa.entity.StudentMarks;
 import com.mlv.springboot.student.data.jpa.service.JWTService;
+import com.mlv.springboot.student.data.jpa.service.RefreshTokenService;
 import com.mlv.springboot.student.data.jpa.service.StudentServiceImplementation;
 
 import jakarta.annotation.PostConstruct;
@@ -40,6 +43,9 @@ public class StudentController {
 
 	@Autowired
 	private AuthenticationManager authenticationManager;
+
+	@Autowired
+	private RefreshTokenService refreshTokenService;
 
 	@PostConstruct
 	public void intiDB() {
@@ -95,16 +101,34 @@ public class StudentController {
 		return studentServiceImplementation.findStudentsWithPaginationAndSorting(offset, pageSize, field);
 	}
 
-	@PostMapping("/authentication")
-	public String authenticateAndGetToken(@RequestBody AuthRequest authRequest) {
+	@PostMapping("/login")
+	public JwtResponse authenticateAndGetToken(@RequestBody AuthRequest authRequest) {
 
 		Authentication authentication = authenticationManager.authenticate(
 				new UsernamePasswordAuthenticationToken(authRequest.getName(), authRequest.getPassword()));
+
 		if (authentication.isAuthenticated()) {
-			return jWTService.generateToken(authRequest.getName());
+
+			RefreshToken refreshToken = refreshTokenService.createrefReshToken(authRequest.getName());
+
+			return JwtResponse.builder().accessToken(jWTService.generateToken(authRequest.getName()))
+					.token(refreshToken.getToken()).build();
 		} else {
 			throw new UsernameNotFoundException("invalid user request !");
 		}
+
+	}
+
+	@PostMapping("/relogin")
+	public JwtResponse refreshToken(@RequestBody RefreshTokenRequest refreshTokenRequest) {
+
+		return refreshTokenService.findByToken(refreshTokenRequest.getToken())
+				.map(refreshTokenService::verifyExpiration).map(RefreshToken::getStudent).map(student -> {
+
+					String accessToken = jWTService.generateToken(student.getName());
+
+					return JwtResponse.builder().accessToken(accessToken).token(refreshTokenRequest.getToken()).build();
+				}).orElseThrow(() -> new RuntimeException("Refresh token is not in database"));
 
 	}
 
